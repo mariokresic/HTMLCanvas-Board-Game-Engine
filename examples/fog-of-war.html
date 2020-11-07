@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Fog Of War Example</title>
+  <link rel="shortcut icon"
+        type="image/x-icon"
+        href="../assets/img/vulcan/hq.png"/>
+
+  <style>
+      body {
+          margin: 0;
+      }
+
+      #wrapper {
+          display: flex;
+          min-height: 100vh;
+          justify-content: center;;
+          align-items: center;
+      }
+  </style>
+</head>
+<body>
+<div id="wrapper">
+  <div id="game"></div>
+</div>
+</body>
+<script type="text/javascript"
+        src="../dist/game-engine.js"></script>
+<script>
+  const currentPlayerId = 1;
+  const mapOptions      = {
+    size: 6,
+    shape: 'hex',
+    terrain: 'vulcan',
+    fogOfWar: true,
+    showTerritoryCoordinates: false,
+    showHq: true,
+    showUnits: false
+  }
+
+  window.game = (function () {
+    const engine = GameEngine.init(currentPlayerId, mapOptions);
+
+    // click event
+    engine.onClick = (territoryCoordinates, point, e) => {
+      engine.closeActionMenu();
+
+      if (territoryCoordinates) {
+        engine.selectTerritory(territoryCoordinates, !e.ctrlKey);
+
+        // clicked on territory
+        const territory = engine.getTerritoryInfo(territoryCoordinates);
+
+        const isCurrentPlayerTerritory = territory.playerId === currentPlayerId;
+        const isHq                     = territory.isHq;
+
+        const actions = [];
+
+        if (isCurrentPlayerTerritory && isHq) {
+          actions.push({
+            id: 'remove_hq',
+            text: 'Remove HQ'
+          });
+        } else if (isCurrentPlayerTerritory) {
+          actions.push({
+            id: 'make_hq',
+            text: 'Make HQ'
+          });
+        } else if (engine.isTerritoryNeighborToPlayer(territoryCoordinates, currentPlayerId)) {
+          actions.push({
+            id: 'attack',
+            text: 'Attack'
+          });
+        }
+
+        if (actions.length) {
+          engine.openActionMenuAtPoint(actions, point);
+        }
+      }
+
+      engine.render();
+    }
+
+    // action button click event
+    engine.onActionButtonClick = actionId => {
+      const selectedTerritories = engine.getSelectedTerritories();
+
+      if (selectedTerritories.length === 1) {
+        const territory = selectedTerritories[0];
+
+        if (actionId === 'make_hq') {
+          engine.removeAllPlayerTerritoryHqs(currentPlayerId);
+          engine.setPlayerHqTerritory(territory.coordinates);
+        } else if (actionId === 'remove_hq') {
+          engine.removePlayerHqTerritory(territory.coordinates);
+        } else if (actionId === 'attack') {
+          engine.addTerritoryToPlayer(currentPlayerId, territory.coordinates)
+
+          if (territory.isHq) {
+            engine.removePlayerHqTerritory(territory.coordinates);
+          }
+
+        }
+
+        engine.render();
+      }
+    }
+
+    // add players
+    const players = [
+      {
+        id: 1,
+        name: "Cyan",
+        color: GameEngine.PLAYER_COLOR.CYAN,
+        team: null,
+        territoryCoordinates: [
+          { i: 4, j: 0 },
+          { i: 3, j: 0 },
+          { i: 4, j: -1 }
+        ],
+        hq: { i: 4, j: 0 }
+      },
+      {
+        id: 2,
+        name: "Purple",
+        color: GameEngine.PLAYER_COLOR.PURPLE,
+        team: null,
+        territoryCoordinates: [
+          { i: -4, j: 4 },
+          { i: -3, j: 4 },
+          { i: -3, j: 3 }
+        ],
+        hq: { i: -3, j: 3 }
+      },
+      {
+        id: 3,
+        name: "Pink",
+        color: GameEngine.PLAYER_COLOR.PINK,
+        team: null,
+        territoryCoordinates: [{ i: -4, j: 0 }],
+        hq: { i: -4, j: 0 }
+      }
+    ];
+
+    for (let i = 0 ; i < players.length ; i++) {
+      engine.createPlayer(
+        players[i].id,
+        players[i].name,
+        players[i].color,
+        players[i].team,
+        players[i].territoryCoordinates,
+        players[i].hq
+      );
+    }
+
+    // resources
+    const availableResources = engine.getAvailableResources();
+
+    engine.addResourceToTerritory(1, { i: 4, j: 0 });
+    engine.addResourceToTerritory(2, { i: 4, j: 0 });
+    engine.addResourceToTerritory(3, { i: 4, j: 0 });
+
+    engine.addResourceToTerritory(5, { i: 3, j: 0 });
+    engine.addResourceToTerritory(6, { i: 3, j: 0 });
+
+    return engine;
+  })();
+</script>
+</html>

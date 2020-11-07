@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style>
+      body {
+          margin: 0;
+      }
+      #wrapper {
+          display: flex;
+          min-height: 100vh;
+          justify-content: center;;
+          align-items: center;
+      }
+
+      #game {
+          overflow: hidden;
+          width: 1024px;
+          height: 768px;
+          background: rgba(0, 0, 0, .1);
+      }
+
+      #territoryTerrainSelect {
+          display: flex;
+          justify-content: space-around;
+          position: absolute;
+          left: 0;
+          bottom: -300px;
+          width: 100%;
+          padding: 10px 0;
+          z-index: 100;
+          background: rgba(0, 0, 0, .5);
+          visibility: hidden;
+
+          transition: all .3s ease-in-out;
+      }
+
+      #territoryTerrainSelect.show {
+          bottom: 0;
+          visibility: visible;
+      }
+
+      #closeTerritoryTerrainSelect {
+          background: transparent;
+          color: #FFF;
+      }
+
+      #settings {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 10px 30px;
+          border: 2px solid rgba(0, 0, 0, .1);
+          height: 744px;
+          border-left: none;
+          color: #000000;
+      }
+
+      #settings__container {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+      }
+
+      #settings label {
+          display: block;
+          margin-bottom: 10px;
+          width: 100%;
+      }
+
+      #settings select {
+          display: block;
+          padding: 10px 15px;
+          margin-bottom: 15px;
+          width: 100%;
+      }
+
+      #settings button {
+          padding: 10px 15px;
+          background: #FFFFFF;
+      }
+      #settings input {
+          margin-bottom: 25px;
+      }
+  </style>
+  <title>Map Editor</title>
+
+  <link rel="shortcut icon" type="image/x-icon" href="../assets/img/grass/hq.png" />
+
+</head>
+<body>
+<div id="wrapper">
+  <div id="game">
+    <div id="territoryTerrainSelect">
+      <span>close</span>
+    </div>
+  </div>
+  <div id="settings">
+    <div id="settings__container">
+      <label>Map Type</label>
+      <select id="mapTypeSelect"
+              name="mapType">
+        <option value="box">Box</option>
+        <option value="hex"
+                selected>Hex
+        </option>
+      </select>
+      <label>Terrain</label>
+      <select id="mapTerrainSelect"
+              name="terrain">
+        <option value="grass"
+                selected>Grass
+        </option>
+        <option value="desert">Desert</option>
+        <option value="vulcan">Vulcan</option>
+      </select>
+      <label>Size</label>
+      <select id="mapSize"
+              name="mapSize">
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5"
+                selected>5
+        </option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+      </select>
+      <label>Show Coordinates </label>
+      <input type="checkbox"
+             id="showCoordinatesCheckbox"
+             name="showCoordinates">
+      <button onclick="refresh()">Refresh</button>
+    </div>
+    <button onclick="save()">Save</button>
+  </div>
+</div>
+</body>
+<script type="text/javascript"
+        src="../dist/game-engine.js"></script>
+<script>
+  let engine;
+
+  function refresh() {
+    loadTerrains();
+    initGameEngine();
+
+    engine.render();
+  }
+
+  function getMapOptions() {
+    const mapSize         = document.getElementById("mapSize").value;
+    const mapType         = document.getElementById("mapTypeSelect").value;
+    const terrain         = document.getElementById("mapTerrainSelect").value;
+    const showCoordinates = document.getElementById("showCoordinatesCheckbox").checked;
+
+    return {
+      ...GameEngine.DEFAULT_MAP_OPTIONS,
+      terrain: terrain,
+      shape: mapType,
+      size: mapSize,
+      showTerritoryCoordinates: showCoordinates
+    };
+  }
+
+  function initGameEngine() {
+    engine         = GameEngine.init(null, getMapOptions());
+    engine.onClick = ((territoryCoordinates, point, e) => {
+      if (!territoryCoordinates) {
+        hideTerritoryTerrainSelect();
+        return;
+      }
+
+      engine.selectTerritory(territoryCoordinates, !e.ctrlKey);
+
+      showTerritoryTerrainSelect();
+
+      engine.render();
+    });
+  }
+
+  function updated() {
+    refresh();
+  }
+
+  function loadTerrains() {
+    const terrain       = document.getElementById("mapTerrainSelect").value;
+    const container     = document.getElementById("territoryTerrainSelect");
+    container.innerHTML = '';
+
+    for (let i = 1 ; i <= 9 ; i++) {
+      const src       = `../assets/img/${terrain}/${i}.png`;
+      const img       = document.createElement('img');
+      img.src         = src;
+      img.style.width = '10%';
+      img.setAttribute('data-id', i.toString());
+      img.className = 'terrain'
+      img.onclick   = onTerrainClick;
+
+      container.appendChild(img);
+    }
+
+    const span     = document.createElement('button');
+    span.id        = 'closeTerritoryTerrainSelect';
+    span.type      = 'button';
+    span.innerText = 'X';
+    span.onclick   = e => {
+      e.stopPropagation();
+      hideTerritoryTerrainSelect();
+    };
+
+    container.appendChild(span);
+  }
+
+  function showTerritoryTerrainSelect() {
+    const container = document.getElementById('territoryTerrainSelect');
+    container.classList.add('show');
+  }
+
+  function hideTerritoryTerrainSelect() {
+    const container = document.getElementById('territoryTerrainSelect');
+    container.classList.remove('show');
+  }
+
+  function onTerrainClick(e) {
+    e.stopPropagation();
+    const territories = engine.getSelectedTerritories();
+
+    if (!territories.length) return;
+
+    const terrain = e.target.getAttribute('data-id');
+
+    for (let i = 0 ; i < territories.length ; i++) {
+      engine.updateTerritoryTerrain(territories[i].coordinates, terrain);
+    }
+
+    engine.render();
+  }
+
+  function save() {
+    onSave(engine._map)
+  }
+
+  function onSave(map) {
+    console.log(map);
+  }
+</script>
+</html>

@@ -1,0 +1,11 @@
+assets/*
+dist/*
+map-editor/*
+node-modules/*
+.eslintrc.js
+.gitignore
+.prettierrc.js
+package.json
+package-lock.json
+tsconfig.json
+webpack.config.js
